@@ -1,0 +1,210 @@
+---
+title: "Data Visual - Final Project Data Clean up"
+author: "EAST Team4"
+
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load the needed libraries
+
+```{r}
+# Load the needed libraries
+library(tidyverse)
+library(lubridate)
+library(rgdal)
+```
+
+
+### Park locations and features -  Aniket -  Data Clean up 
+
+```{r}
+#Set the working directory 
+setwd("C:/Users/vb4087/Desktop/ND/DV/PR/")
+# Publick facility
+Public_Facilities <- read.csv("Public_Facilities.txt")
+PF.spatial_Aniket <- SpatialPointsDataFrame(coords = Public_Facilities[,c("Lon","Lat")], data = Public_Facilities,
+                             proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+PF.spatial_Aniket@data$PF_popup <- paste("<b>","Facility Name: ",PF.spatial_Aniket@data$POPL_NAME,
+                                         "<br>","Facility Type: ",PF.spatial_Aniket@data$POPL_TYPE,"<br>",
+                                         "City : ", PF.spatial_Aniket@data$POPL_CITY, sep ="")
+
+
+# Parks and locations
+Parks_Locations_and_Features <- read.csv("Parks_Locations_and_Features.txt") 
+#Convert the data to spatial data
+Parks.spatial_Aniket <- SpatialPointsDataFrame(coords = Parks_Locations_and_Features[,c("Lon","Lat")], data = Parks_Locations_and_Features,
+                             proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+Parks.spatial_Aniket@data$Park_popup <- paste("<b>","Facility Name: ",Parks.spatial_Aniket@data$Park_Name,
+                                         "<br>","Facility Type: ",Parks.spatial_Aniket@data$Park_Type,"<br>",
+                                         "Address : ", Parks.spatial_Aniket@data$Address, sep ="")
+
+# Save the data for app
+save(Parks.spatial_Aniket, file = "Parks.spatial_Aniket.RData")
+save(PF.spatial_Aniket, file = "PF.spatial_Aniket.RData")
+```
+
+### Census data & Schools - Steve
+```{r}
+#Load Census variable Descriptions
+setwd("C:/Users/vb4087/Desktop/ND/DV/PR/")
+# Load the data
+Census <- readOGR(dsn="2010_CensusData", layer = "2010_CensusData", stringsAsFactors = FALSE) 
+school <- readOGR(dsn="School_Boundaries", layer = "School_Boundaries", stringsAsFactors = FALSE) 
+#read the column header for census
+CensusDescrip_steve <- read.table("2010_CensusData/2010_CensusFieldNamesMod.txt",
+                           sep="|",
+                           header = TRUE,
+                           dec = ".",
+                           stringsAsFactors = FALSE,
+                           strip.white = TRUE,
+                           fill=FALSE)
+
+#setup vectors of descriptions to use in maps
+CensusLabels_steve <- CensusDescrip_steve$Description
+names(CensusLabels_steve) <- CensusDescrip_steve$Variable  
+#setup vectors of descriptions to use in maps
+CensusVars_steve <- CensusDescrip_steve$Variable
+names(CensusVars_steve) <- CensusDescrip_steve$Description  
+# Save the data
+save(school, file = "school_Steve.RData")
+save(Census, file = "Census_Steve.RData")
+save(CensusVars_steve, file = "CensusVars_Steve.RData")
+save(CensusLabels_steve, file = "CensusLabels_Steve.RData")
+
+```
+
+### Code enforcement data clean up - Patrick 
+
+```{r}
+#Set the working directory 
+setwd("C:/Users/vb4087/Desktop/ND/DV/PR/")
+# Data loading
+# Distric map
+cc <- readOGR(dsn = "City_Council_Districts",layer = "City_Council_Districts")
+# Code Enforcement
+enforce_pat <- read.csv("Code_Enforcement_Cases.txt", stringsAsFactors = F)
+# Fix name of first column
+names(enforce_pat)[1] <- "Case_Year"
+
+# Limit the amount of data from 2013 onwards
+enfor <- filter(enforce_pat, Case_Year > 12 & Case_Number != "13-0039052")
+# DAta Transformation and clean up
+enfor <- separate(enfor, col = "Date_Case_Reported___Calc", into = c("Date", "Time"), sep =  " ")
+# Date formatting 
+enfor$Date <- as.Date(enfor$Date, "%m/%d/%Y")
+#creating spatial object
+enfor_spatial <- SpatialPointsDataFrame(coords = enfor[,c("Lon", "Lat")],
+                                        data = enfor[,],
+                                        proj4string = CRS("+proj=longlat +datum=WGS84"))
+# Save the data
+save(cc, file = "cc_Patrick.RData")
+save(enfor, file = "enfors_Patrick.RData")
+
+```
+
+### Abandoned properties - Michael
+
+```{r}
+#Set the working directory 
+setwd("C:/Users/vb4087/Desktop/ND/DV/PR/")
+
+#Load files
+districts_Michael <- readOGR(dsn = "City_Council_Districts","City_Council_Districts", stringsAsFactors = F)
+properties_Michael <- readOGR(dsn = "Abandoned_Property_Parcels","Abandoned_Property_Parcels", stringsAsFactors = F)
+#Filter to only unresolved
+properties_Michael <- properties_Michael[is.na(properties_Michael@data$Outcome_St),]
+properties_Michael <- properties_Michael[!is.na(properties_Michael@data$Code_Enfor),]
+# Save the data
+save(districts_Michael, file = "districts_Michael.RData")
+save(properties_Michael, file = "properties_Michael.RData")
+```
+
+
+
+### Phone call,Contact management -Report - Vijay
+
+```{r}
+# Set the working directory
+setwd("C:/Users/vb4087/Desktop/ND/DV/PR")
+# Load the text data
+Contact_Management <- read.csv("311_Contact_Management_Cases.txt")
+Phone_Call_Log <- read.csv("311_Phone_Call_Log_Mod.txt")
+Parks_Locations_and_Features <- read.csv("Parks_Locations_and_Features.txt") # Aniket
+Public_Facilities <- read.csv("Public_Facilities.txt")
+Street_Lights <- read.csv("Street_Lights.txt")
+
+# Polygon loading
+# Load the school Boundaries data.
+school <- readOGR(dsn="C:/Users/vb4087/Desktop/ND/DV/PR/School_Boundaries", layer = "School_Boundaries", stringsAsFactors = FALSE) 
+school_points <- t(sapply(school@polygons,function(p) p@Polygons[[1]]@labpt) )
+school.points <- SpatialPointsDataFrame(coords = school_points, data = school@data,
+                             proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+# format the text files into spatial objects
+Parks.spatial <- SpatialPointsDataFrame(coords = Parks_Locations_and_Features[,c("Lon","Lat")], data = Parks_Locations_and_Features,
+                             proj4string = CRS("+proj=longlat +datum=WGS84"))
+Street_Lights.spatial <- SpatialPointsDataFrame(coords = Street_Lights[,c("Lon","Lat")], data = Street_Lights,
+                             proj4string = CRS("+proj=longlat +datum=WGS84"))
+Public_Facilities.spatial <- SpatialPointsDataFrame(coords = Public_Facilities[,c("Lon","Lat")], data = Public_Facilities,
+                             proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+# Data clean up
+# Contact_Management
+Contact_Management$Entry_Date <- as.Date.character(Contact_Management$Entry_Date___Calc) # Date formating
+Contact_Management$Close_Date <- as.Date.character(Contact_Management$Close_Date___Calc)
+Contact_Management$duration <- Contact_Management$Close_Date-Contact_Management$Entry_Date # duration
+Contact_Management_final <- Contact_Management[,c(4,6,12:14)]  
+
+
+# Phone call
+Phone_Call_Log$Call_Date <- ymd_hms(Phone_Call_Log[,1]) 
+Phone_Call_Log$Duration__Minutes_ <- as.character(Phone_Call_Log$Duration__Minutes_)
+FID_na <- Phone_Call_Log%>%
+          filter(is.na(duration_Seconds)) %>%
+          select(FID)
+Phone_Call_Log[Phone_Call_Log$FID %in% FID_na$FID,]$duration_Seconds <- 
+as.numeric(as.period(lubridate::hms(Phone_Call_Log[Phone_Call_Log$FID %in% FID_na$FID,]$Duration__Minutes_), unit = "sec"))
+Phone_Call_Log_final <- Phone_Call_Log[,c(3,4,7,8)]
+
+# Properties Summary
+# Parks
+SB_Parks <- Parks.spatial@data %>% 
+              group_by(Park_Type )  %>%
+              count( Park_Type)
+names(SB_Parks)<- c("Facility", "Count")
+# Street light
+SB_SL <-Street_Lights.spatial@data %>% 
+              filter(Service !=" " & Service!="") %>%
+              group_by(Service )  %>%
+              count( Service) 
+names(SB_SL)<- c("Facility", "Count")
+SB_SL$Facility <- as.character(SB_SL$Facility)
+SB_SL[,1] <- paste("Street light", SB_SL$Facility,sep='-' )
+# Public facility
+SB_PF <- Public_Facilities.spatial@data %>% 
+              group_by(POPL_TYPE )  %>%
+              count( POPL_TYPE) 
+names(SB_PF)<- c("Facility", "Count")
+# Schools
+SB_schools <- school@data %>% 
+              group_by(SchoolType )  %>%
+              count( SchoolType) 
+names(SB_schools)<- c("Facility", "Count")
+SB_schools[,1] <- paste( SB_schools$Facility,"school",sep=' ' )
+# Combin the facilities
+SB_facilities <- rbind.data.frame(SB_Parks,SB_SL,SB_schools,SB_PF)
+
+# Save the data
+save(SB_facilities, file = "SB_facilities_Vijay.RData")
+save(Contact_Management_final, file = "Contact_Management_final_Vijay.RData")
+save(Phone_Call_Log_final, file = "Phone_Call_Log_final_Vijay.RData")
+```
+
+
+
