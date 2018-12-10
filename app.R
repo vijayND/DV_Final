@@ -221,7 +221,7 @@ ui <- fluidPage(
                        br(),
                        h3("Vijayasarathi Balasubramanian", align = "center"),
                        br(),
-                       h3("Anikey Desai", align = "center"),
+                       h3("Aniket Desai", align = "center"),
                        br(),
                        h3("Steven Lauretti", align = "center"),
                        br(),
